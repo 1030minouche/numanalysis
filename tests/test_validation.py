@@ -98,3 +98,11 @@ def test_as_square_matrix() -> None:
     assert as_square_matrix([[1]]) == [[1.0]]
     with pytest.raises(ShapeError, match=r"square, got shape \(2, 3\)"):
         as_square_matrix([[1, 2, 3], [4, 5, 6]], name="A")
+
+
+def test_promote_keeps_fraction_subclasses() -> None:
+    class MyFraction(Fraction):
+        pass
+
+    x = MyFraction(1, 2)
+    assert promote(x) is x
