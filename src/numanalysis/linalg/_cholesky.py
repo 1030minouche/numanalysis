@@ -1,4 +1,4 @@
-from lu import verifCarre
+from ._lu import verifCarre
 
 
 def est_symetrique(A: list[list[float]], tol: float = 1e-9) -> bool:
@@ -107,7 +107,3 @@ def cholesky(A: list[list[float]]) -> list[list[float]]:
                 L[i][j] = (A[i][j] - somme) / L[j][j]
 
     return L
-
-
-test = [[1, 2, 6, 8], [2, 5, 15, 23], [6, 15, 46, 73], [8, 23, 73, 130]]
-print(cholesky(test))
