@@ -11,13 +11,13 @@ Bugs de 0.1.1 à corriger, chacun avec un test de régression :
 6. Types incohérents : `ulu_unit([[4, 3], [6, 3]])` renvoie `[[4, 3], [0.0, -1.5]]` ; les doctests échouent.
 7. Métadonnées fausses : `Requires-Python >=2.7`, classifier Python 2, description « Package for LU decomp ».
 
-- [ ] `.gitignore` Python complet ; structure `src/numanalysis/` (avec un sous-paquet `linalg/`) via `git mv` ; `readme.md` → `README.md`.
-- [ ] `pyproject.toml` (backend hatchling) : `requires-python = ">=3.11"`, classifiers Python 3, description, licence MIT, URLs (dépôt, doc, issues), mots-clés, extras ; version unique dans `src/numanalysis/__init__.py`.
-- [ ] Import relatif corrigé ; plus aucun code exécuté à l'import.
-- [ ] Nouvelle API : `is_square`, `is_symmetric`, `is_positive_definite` (qui vérifie aussi la symétrie), `lu` (une seule factorisation, pivot partiel, renvoie `P, L, U` avec PA = LU ; documenter la différence avec `scipy.linalg.lu`, qui renvoie P tel que A = PLU), `cholesky` (une seule factorisation, lève `NotPositiveDefiniteError`).
-- [ ] Exceptions dédiées, validation des entrées, types de sortie cohérents.
-- [ ] Tests : régression des 7 bugs, propriétés `hypothesis` (PA = LU, LLᵀ = A), SciPy comme oracle, doctests ; couverture ≥ 90 %.
-- [ ] Outillage : ruff, mypy, pre-commit, `py.typed`.
+- [x] `.gitignore` Python complet ; structure `src/numanalysis/` (avec un sous-paquet `linalg/`) via `git mv` ; `readme.md` → `README.md`.
+- [x] `pyproject.toml` (backend hatchling) : `requires-python = ">=3.11"`, classifiers Python 3, description, licence MIT, URLs (dépôt, doc, issues), mots-clés, extras ; version unique dans `src/numanalysis/__init__.py`.
+- [x] Import relatif corrigé ; plus aucun code exécuté à l'import.
+- [x] Nouvelle API : `is_square`, `is_symmetric`, `is_positive_definite` (qui vérifie aussi la symétrie), `lu` (une seule factorisation, pivot partiel, renvoie `P, L, U` avec PA = LU ; documenter la différence avec `scipy.linalg.lu`, qui renvoie P tel que A = PLU), `cholesky` (une seule factorisation, lève `NotPositiveDefiniteError`).
+- [x] Exceptions dédiées, validation des entrées, types de sortie cohérents.
+- [x] Tests : régression des 7 bugs, propriétés `hypothesis` (PA = LU, LLᵀ = A), SciPy comme oracle, doctests ; couverture ≥ 90 %.
+- [x] Outillage : ruff, mypy, pre-commit, `py.typed`.
 - [ ] Workflows `ci.yml` et `publish.yml`, plus mes réglages manuels.
 - [ ] README en anglais et `README.fr.md` avec badges (CI, PyPI, couverture, licence) ; `CHANGELOG.md` au format Keep a Changelog, avec une section « Migration depuis 0.1.x » (anciens noms → nouveaux) ; `CONTRIBUTING.md`.
 
