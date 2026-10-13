@@ -47,7 +47,7 @@ def test_bug3_permutation_matrix_needs_pivoting() -> None:
 
 
 def test_bug3_tiny_pivot_is_avoided() -> None:
-    A = [[1e-20, 1], [1, 1]]
+    A: list[list[float]] = [[1e-20, 1], [1, 1]]
     P, L, U = lu(A)
     assert matmul(L, U) == matmul(P, A)
     assert P == [[0.0, 1.0], [1.0, 0.0]]
@@ -60,7 +60,7 @@ def test_bug4_positive_definite_reads_the_whole_matrix() -> None:
 
 def test_bug5_lu_validates_and_factorizes_once(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = []
-    original = _lu.as_square_matrix
+    original = _lu.as_square_matrix  # type: ignore[attr-defined]
 
     def spy(A: Any, **kwargs: Any) -> Any:
         calls.append(A)
