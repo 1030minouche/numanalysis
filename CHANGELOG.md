@@ -1,0 +1,73 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- `numanalysis.linalg` subpackage, re-exported at the top level.
+- `lu(A)`: LU factorization with partial pivoting, `P A = L U`, computed in a single
+  pass. Returns an `LUResult` that unpacks as `P, L, U` and exposes `perm`.
+- `cholesky(A)`: single-pass Cholesky factorization returning a `CholeskyResult`
+  (`.L`, unpacks as `(L,)`).
+- `is_square`, `is_symmetric` (relative tolerance for floats, exact comparison for
+  `Fraction`/`Decimal`) and `is_positive_definite` (symmetry + positive pivots, no
+  square root, exact for fractions).
+- `numanalysis.exceptions`: `NumAnalysisError`, `ShapeError`, `SingularMatrixError`,
+  `NotSymmetricError`, `NotPositiveDefiniteError`, all subclasses of `ValueError`.
+- Input validation: any sequence of sequences (lists, tuples, NumPy arrays) is
+  accepted and never modified; empty, ragged or non-numeric input raises a clear error.
+- `Fraction` and `Decimal` matrices are kept exact by `lu` and `is_positive_definite`.
+- Type hints and a `py.typed` marker.
+- Test suite: regression tests, `hypothesis` properties, SciPy/NumPy as oracles,
+  doctests, 100 % coverage.
+- Tooling: ruff, mypy (strict), pre-commit.
+
+### Changed
+
+- Sources moved to a `src/numanalysis/` layout; packaging now uses `pyproject.toml`
+  with the hatchling backend. The version is defined once in `numanalysis.__version__`.
+- Every public name is in English (see the migration guide below).
+- Integer input gives `float` output everywhere.
+
+### Fixed
+
+- `from numanalysis import cholesky` raised `ModuleNotFoundError: No module named 'lu'`
+  once installed (absolute import replaced by a relative one).
+- Importing the package printed messages and ran a test computation.
+- LU had no pivoting: `[[0, 1], [1, 0]]` raised `ZeroDivisionError` and
+  `[[1e-20, 1], [1, 1]]` gave a wrong factorization.
+- `est_definie_positive([[1, 100], [0, 1]])` returned `True`: only the lower triangle
+  was read. `is_positive_definite` now checks symmetry first.
+- `llu_unit` and `ulu_unit` each recomputed the factorization, and `cholesky`
+  factorized twice.
+- Inconsistent output types (`[[4, 3], [0.0, -1.5]]`) and failing doctests.
+- Wrong metadata: `Requires-Python >=2.7`, Python 2 classifier and outdated
+  description. Python ≥ 3.11 is now required.
+
+### Migration from 0.1.x
+
+| 0.1.x                         | 0.2.0                                    |
+| ----------------------------- | ---------------------------------------- |
+| `lu.verifCarre(A)`            | `is_square(A)`                           |
+| `cholesky.est_symetrique(A)`  | `is_symmetric(A)`                        |
+| `cholesky.est_definie_positive(A)` | `is_positive_definite(A)`           |
+| `lu.llu_unit(A)`              | `lu(A).L` (now with pivoting: `P A = L U`) |
+| `lu.ulu_unit(A)`              | `lu(A).U`                                |
+| `cholesky.cholesky(A)`        | `cholesky(A).L`                          |
+| `ValueError`                  | `ShapeError`, `NotSymmetricError`, `NotPositiveDefiniteError` (still `ValueError` subclasses) |
+
+Because `lu` now pivots, `L` and `U` can differ from the 0.1.x results: compare
+`L U` with `P A`, not with `A`.
+
+## [0.1.1] - 2025-10-19
+
+### Added
+
+- First published version: LU (without pivoting) and Cholesky factorizations.
+
+[Unreleased]: https://github.com/1030minouche/numanalysis/compare/05ce63b...HEAD
