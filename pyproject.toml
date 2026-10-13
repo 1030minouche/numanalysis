@@ -110,7 +110,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "8.0"
 pythonpath = ["tests"]
-testpaths = ["tests", "src", "README.md"]
+testpaths = ["tests", "src", "README.md", "README.fr.md"]
 addopts = [
     "--doctest-modules",
     "--doctest-glob=*.md",
