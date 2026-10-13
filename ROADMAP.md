@@ -19,7 +19,7 @@ Bugs de 0.1.1 à corriger, chacun avec un test de régression :
 - [x] Tests : régression des 7 bugs, propriétés `hypothesis` (PA = LU, LLᵀ = A), SciPy comme oracle, doctests ; couverture ≥ 90 %.
 - [x] Outillage : ruff, mypy, pre-commit, `py.typed`.
 - [ ] Workflows `ci.yml` et `publish.yml`, plus mes réglages manuels.
-- [ ] README en anglais et `README.fr.md` avec badges (CI, PyPI, couverture, licence) ; `CHANGELOG.md` au format Keep a Changelog, avec une section « Migration depuis 0.1.x » (anciens noms → nouveaux) ; `CONTRIBUTING.md`.
+- [x] README en anglais et `README.fr.md` avec badges (CI, PyPI, couverture, licence) ; `CHANGELOG.md` au format Keep a Changelog, avec une section « Migration depuis 0.1.x » (anciens noms → nouveaux) ; `CONTRIBUTING.md`.
 
 ### v0.3.0 — Le cœur « boîte de verre »
 - [ ] `_scalar.py` : `float`, `Fraction`, `Decimal`, `complex` et mpmath (extra `mp`) dans tous les algorithmes existants.

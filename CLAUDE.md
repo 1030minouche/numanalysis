@@ -88,7 +88,7 @@ pre-commit install
 
 ruff check . && ruff format --check .   # lint / format check (ruff format . to fix)
 mypy                                    # type check (config in pyproject.toml)
-pytest                                  # tests + doctests + coverage (≥ 90 %)
+pytest --cov=numanalysis                # tests + doctests + coverage (≥ 90 %)
 python -m build && twine check dist/*   # build and check distributions
 ```
 
