@@ -89,7 +89,8 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "N", "D", "PT", "C4"]
-ignore = ["D105", "D107"]
+# Uppercase names (A, L, U, P) follow mathematical convention.
+ignore = ["D105", "D107", "N803", "N806"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
