@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  lint:
+    name: Lint and type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+        include:
+          - os: windows-latest
+            python-version: "3.14"
+          - os: macos-latest
+            python-version: "3.14"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - name: Run tests with doctests and coverage
+        run: python -m pytest --cov=numanalysis --cov-report=term-missing --cov-report=xml
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  minimal:
+    name: Core without optional dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install only the package, pytest and hypothesis
+        run: python -m pip install -e . pytest hypothesis
+      - name: Check that numpy, scipy and mpmath are absent
+        run: |
+          python - <<'PY'
+          import importlib.util, sys
+          present = [m for m in ("numpy", "scipy", "mpmath") if importlib.util.find_spec(m)]
+          sys.exit(f"unexpected optional dependencies: {present}" if present else 0)
+          PY
+      - run: python -m pytest
+
+  package:
+    name: Build and install the distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check --strict dist/*
+      - name: Install the wheel in a clean venv and import it outside the repository
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv clean-venv
+          clean-venv/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          clean-venv/bin/python - <<'PY'
+          import numanalysis
+          from numanalysis import cholesky, is_positive_definite, lu
+
+          assert "site-packages" in numanalysis.__file__, numanalysis.__file__
+          P, L, U = lu([[0, 1], [1, 0]])
+          assert U == [[1.0, 0.0], [0.0, 1.0]]
+          assert cholesky([[4, 2], [2, 5]]).L == [[2.0, 0.0], [1.0, 2.0]]
+          assert not is_positive_definite([[1, 100], [0, 1]])
+          print("numanalysis", numanalysis.__version__, "OK")
+          PY
