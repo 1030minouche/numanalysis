@@ -1,4 +1,4 @@
-from ._lu import verifCarre
+from ._properties import is_square as verifCarre  # noqa: N812
 
 
 def est_symetrique(A: list[list[float]], tol: float = 1e-9) -> bool:
@@ -55,7 +55,7 @@ def est_definie_positive(A: list[list[float]]) -> bool:
                     val = A[i][i] - somme
                     if val <= 0:
                         return False
-                    L[i][j] = val ** 0.5
+                    L[i][j] = val**0.5
                 else:
                     L[i][j] = (A[i][j] - somme) / L[j][j]
         return True
@@ -102,7 +102,7 @@ def cholesky(A: list[list[float]]) -> list[list[float]]:
                 val = A[i][i] - somme
                 if val <= 0:
                     raise ValueError("La matrice n'est pas définie positive.")
-                L[i][j] = val ** 0.5
+                L[i][j] = val**0.5
             else:
                 L[i][j] = (A[i][j] - somme) / L[j][j]
 
