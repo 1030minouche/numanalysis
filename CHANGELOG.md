@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Every algorithm now runs in the scalar type of its input: `float`, `complex`,
+  `Fraction`, `Decimal`, and `mpmath.mpf`/`mpc` (optional `mp` extra). A matrix mixing
+  kinds is computed in one common type (e.g. `int` + `Fraction` → `Fraction`,
+  `Fraction` + `float` → `float`); `Decimal` cannot be mixed with `float`, `complex`,
+  `Fraction` or mpmath numbers and raises `TypeError`.
+- `is_hermitian(A)`. `cholesky` and `is_positive_definite` accept complex Hermitian
+  matrices (`A = L Lᴴ`).
+- `InexactResultError`, raised when an exact type cannot represent a result.
+
+### Changed
+
+- `cholesky` on `Fraction` input is now exact (it returned `float` before), and raises
+  `InexactResultError` when a square root is irrational.
+- Default relative tolerance of the symmetry tests: 4096 machine epsilons of the
+  current precision (about 9.1e-13 for `float`, was 1e-12). `Decimal` and mpmath
+  matrices are now compared with this relative tolerance; only `Fraction` matrices
+  are compared exactly.
+- Mixed-type matrices give one consistent output type.
+
 ## [0.2.0] - 2026-10-13
 
 ### Added
