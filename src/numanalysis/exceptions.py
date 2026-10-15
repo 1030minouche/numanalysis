@@ -11,6 +11,7 @@ __all__ = [
     "NumAnalysisError",
     "ShapeError",
     "SingularMatrixError",
+    "ZeroPivotError",
 ]
 
 
@@ -24,6 +25,14 @@ class ShapeError(NumAnalysisError):
 
 class SingularMatrixError(NumAnalysisError):
     """The matrix is singular, so the requested operation is impossible."""
+
+
+class ZeroPivotError(NumAnalysisError):
+    """Elimination without pivoting met a zero pivot.
+
+    The matrix may still be invertible: a method with pivoting (such as
+    :func:`~numanalysis.lu`) can factorize it.
+    """
 
 
 class NotSymmetricError(NumAnalysisError):
