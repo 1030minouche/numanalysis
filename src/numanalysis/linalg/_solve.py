@@ -1,9 +1,10 @@
 """Direct solvers: triangular substitutions, solve, det, inv, Thomas algorithm."""
 
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, Literal, overload
 
-from .._scalar import Field, Scalar, field_of
+from .._scalar import Field, field_of
+from .._steps import Determinant, Formula, Header, Note, Steps, VectorSnapshot
 from .._validation import (
     Matrix,
     MatrixLike,
@@ -13,7 +14,8 @@ from .._validation import (
     read_vector,
 )
 from ..exceptions import ShapeError, SingularMatrixError, ZeroPivotError
-from ._lu import Pivoting, _check_pivot, _factor
+from ._lu import Pivoting, _check_pivot, _factor, _record_factors
+from ._results import Traced
 
 __all__ = [
     "back_substitution",
@@ -25,36 +27,53 @@ __all__ = [
 ]
 
 
-def _forward(L: Matrix, B: Matrix, *, unit_diagonal: bool) -> Matrix:
-    """Solve ``L X = B`` row by row, reading only the lower triangle of `L`."""
-    X: Matrix = []
-    for i in range(len(L)):
-        row = list(B[i])
-        for k in range(i):
-            row = [r - L[i][k] * x for r, x in zip(row, X[k], strict=True)]
-        if not unit_diagonal:
-            d = L[i][i]
-            if d == 0:
-                raise SingularMatrixError(f"zero on the diagonal at row {i}")
-            row = [r / d for r in row]
-        X.append(row)
-    return X
+def _substitute(
+    T: Matrix,
+    B: Matrix,
+    F: Field,
+    *,
+    lower: bool,
+    unit_diagonal: bool,
+    rec: Steps | None = None,
+    name: str = "x",
+) -> Matrix:
+    """Solve ``T X = B`` for a triangular `T`, reading only its triangle.
 
-
-def _backward(U: Matrix, B: Matrix, *, unit_diagonal: bool) -> Matrix:
-    """Solve ``U X = B`` from the last row up, reading only the upper triangle."""
-    n = len(U)
+    Row i is ``x_i = (b_i - sum_k t_ik x_k) / t_ii``, from the first row down when
+    `lower`, from the last row up otherwise. Each row is recorded in `rec`.
+    """
+    n = len(T)
     X: Matrix = [[] for _ in range(n)]
-    for i in reversed(range(n)):
-        row = list(B[i])
-        for k in range(i + 1, n):
-            row = [r - U[i][k] * x for r, x in zip(row, X[k], strict=True)]
-        if not unit_diagonal:
-            d = U[i][i]
+    order = range(n) if lower else reversed(range(n))
+    for i in order:
+        known = range(i) if lower else range(i + 1, n)
+        s = [
+            sum((T[i][k] * X[k][c] for k in known), start=F.zero)
+            for c in range(len(B[i]))
+        ]
+        row = [b - v for b, v in zip(B[i], s, strict=True)]
+        d = None if unit_diagonal else T[i][i]
+        if d is not None:
             if d == 0:
-                raise SingularMatrixError(f"zero on the diagonal at row {i}")
+                exc = SingularMatrixError(f"zero on the diagonal at row {i}")
+                if rec is not None:
+                    rec.add(Note("singular"))
+                    exc.steps = rec
+                raise exc
             row = [r / d for r in row]
         X[i] = row
+        if rec is not None:
+            one = len(row) == 1  # show scalars rather than 1-tuples
+            rec.add(
+                Formula(
+                    name,
+                    (i,),
+                    B[i][0] if one else B[i],
+                    (s[0] if one else s) if len(known) else None,
+                    d,
+                    row[0] if one else row,
+                )
+            )
     return X
 
 
@@ -62,8 +81,43 @@ def _unwrap(X: Matrix, is_vector: bool) -> Any:
     return [row[0] for row in X] if is_vector else X
 
 
+def _record_value(rec: Steps, key: str, name: str, X: Matrix, is_vector: bool) -> None:
+    """Append a section `key` showing the vector or matrix `X`."""
+    rec.add(Header(key))
+    if is_vector:
+        rec.add(VectorSnapshot(name, tuple(row[0] for row in X)))
+    else:
+        rec.snapshot(X, name=name)
+
+
+def _triangular(
+    T: MatrixLike,
+    b: Iterable[Any],
+    *,
+    lower: bool,
+    unit_diagonal: bool,
+    steps: bool,
+    lang: str,
+) -> Any:
+    M, B, F, is_vector = as_system(T, b, name="L" if lower else "U")
+    rec = Steps(lang=lang) if steps else None
+    if rec is not None:
+        rec.add(Header("forward_plain" if lower else "back_plain"))
+    X = _substitute(M, B, F, lower=lower, unit_diagonal=unit_diagonal, rec=rec)
+    value = _unwrap(X, is_vector)
+    if rec is None:
+        return value
+    _record_value(rec, "solution", "x" if is_vector else "X", X, is_vector)
+    return Traced(value, rec)
+
+
 def forward_substitution(
-    L: MatrixLike, b: Iterable[Any], *, unit_diagonal: bool = False
+    L: MatrixLike,
+    b: Iterable[Any],
+    *,
+    unit_diagonal: bool = False,
+    steps: bool = False,
+    lang: str = "en",
 ) -> Any:
     """Solve the lower triangular system ``L x = b``.
 
@@ -79,11 +133,17 @@ def forward_substitution(
         Right-hand side: a vector, or a matrix whose columns are solved together.
     unit_diagonal : bool, optional
         Assume that the diagonal of `L` is made of ones.
+    steps : bool, optional
+        Also return the computation of every unknown, as a
+        :class:`~numanalysis.linalg.Traced` result.
+    lang : {"en", "fr"}, optional
+        Default language of the recorded steps.
 
     Returns
     -------
-    list
-        The solution, with the same shape as `b`.
+    list or Traced
+        The solution, with the same shape as `b`; with ``steps=True``, a result
+        that unpacks as ``x, steps``.
 
     Raises
     ------
@@ -101,15 +161,28 @@ def forward_substitution(
     >>> forward_substitution([[2, 0], [1, 1]], [4, 3])
     [2.0, 1.0]
     >>> from fractions import Fraction as F
-    >>> forward_substitution([[3, 0], [1, 3]], [F(1), F(0)])
+    >>> x, steps = forward_substitution([[3, 0], [1, 3]], [F(1), F(0)], steps=True)
+    >>> x
     [Fraction(1, 3), Fraction(-1, 9)]
+    >>> print(steps)
+    Forward substitution: L x = b
+      x₁ = 1 / 3 = 1/3
+      x₂ = (0 − (1/3)) / 3 = -1/9
+    Solution
+      x = (1/3, -1/9)
     """
-    M, B, _, is_vector = as_system(L, b, name="L")
-    return _unwrap(_forward(M, B, unit_diagonal=unit_diagonal), is_vector)
+    return _triangular(
+        L, b, lower=True, unit_diagonal=unit_diagonal, steps=steps, lang=lang
+    )
 
 
 def back_substitution(
-    U: MatrixLike, b: Iterable[Any], *, unit_diagonal: bool = False
+    U: MatrixLike,
+    b: Iterable[Any],
+    *,
+    unit_diagonal: bool = False,
+    steps: bool = False,
+    lang: str = "en",
 ) -> Any:
     """Solve the upper triangular system ``U x = b``.
 
@@ -124,11 +197,17 @@ def back_substitution(
         Right-hand side: a vector, or a matrix whose columns are solved together.
     unit_diagonal : bool, optional
         Assume that the diagonal of `U` is made of ones.
+    steps : bool, optional
+        Also return the computation of every unknown, as a
+        :class:`~numanalysis.linalg.Traced` result.
+    lang : {"en", "fr"}, optional
+        Default language of the recorded steps.
 
     Returns
     -------
-    list
-        The solution, with the same shape as `b`.
+    list or Traced
+        The solution, with the same shape as `b`; with ``steps=True``, a result
+        that unpacks as ``x, steps``.
 
     Raises
     ------
@@ -146,25 +225,66 @@ def back_substitution(
     >>> back_substitution([[2, 1], [0, 4]], [3, 4])
     [1.0, 1.0]
     """
-    M, B, _, is_vector = as_system(U, b, name="U")
-    return _unwrap(_backward(M, B, unit_diagonal=unit_diagonal), is_vector)
+    return _triangular(
+        U, b, lower=False, unit_diagonal=unit_diagonal, steps=steps, lang=lang
+    )
 
 
-def _lu_solve(M: Matrix, B: Matrix, F: Field, pivot: str) -> Matrix:
+def _lu_solve(
+    M: Matrix,
+    B: Matrix,
+    F: Field,
+    pivot: str,
+    rec: Steps | None = None,
+    *,
+    is_vector: bool = True,
+) -> Matrix:
     """Solve ``M X = B`` by LU factorization; `M` is overwritten."""
-    L, U, perm, col_perm = _factor(M, F, pivot)
+    L, U, perm, col_perm = _factor(M, F, pivot, rec)
+    _record_factors(rec, L=L, U=U)
     for k in range(len(U)):
         if U[k][k] == 0:
-            raise SingularMatrixError(f"A is singular: zero pivot at step {k + 1}")
-    Y = _forward(L, [B[p] for p in perm], unit_diagonal=True)
-    Z = _backward(U, Y, unit_diagonal=False)
+            exc = SingularMatrixError(f"A is singular: zero pivot at step {k + 1}")
+            if rec is not None:
+                rec.add(Note("singular"))
+                exc.steps = rec
+            raise exc
+    PB = [B[p] for p in perm]
+    complete = pivot == "complete"
+    if rec is not None:
+        rec.add(Header("forward"))
+        if is_vector:
+            rec.add(VectorSnapshot("P b", tuple(row[0] for row in PB), "permuted_rhs"))
+        else:
+            rec.snapshot(PB, name="P B")
+    Y = _substitute(L, PB, F, lower=True, unit_diagonal=True, rec=rec, name="y")
+    if rec is not None:
+        rec.add(Header("back" if complete else "back_x"))
+    Z = _substitute(
+        U,
+        Y,
+        F,
+        lower=False,
+        unit_diagonal=False,
+        rec=rec,
+        name="z" if complete else "x",
+    )
     X: Matrix = [[] for _ in Z]
     for j, row in zip(col_perm, Z, strict=True):  # undo the column permutation
         X[j] = row
+    if rec is not None and complete:
+        rec.add(Note("unpermute"))
     return X
 
 
-def solve(A: MatrixLike, b: Iterable[Any], *, pivot: Pivoting = "partial") -> Any:
+def solve(
+    A: MatrixLike,
+    b: Iterable[Any],
+    *,
+    pivot: Pivoting = "partial",
+    steps: bool = False,
+    lang: str = "en",
+) -> Any:
     """Solve the linear system ``A x = b``.
 
     `A` is factorized as ``P A = L U`` (``P A Q = L U`` with complete pivoting),
@@ -181,11 +301,17 @@ def solve(A: MatrixLike, b: Iterable[Any], *, pivot: Pivoting = "partial") -> An
         Right-hand side: a vector, or a matrix whose columns are solved together.
     pivot : {"partial", "complete"}, optional
         Pivoting strategy of the LU factorization.
+    steps : bool, optional
+        Also return every step (elimination, then both substitutions), as a
+        :class:`~numanalysis.linalg.Traced` result.
+    lang : {"en", "fr"}, optional
+        Default language of the recorded steps.
 
     Returns
     -------
-    list
-        The solution, with the same shape as `b`.
+    list or Traced
+        The solution, with the same shape as `b`; with ``steps=True``, a result
+        that unpacks as ``x, steps``.
 
     Raises
     ------
@@ -204,12 +330,43 @@ def solve(A: MatrixLike, b: Iterable[Any], *, pivot: Pivoting = "partial") -> An
     >>> solve([[2, 1], [1, 3]], [3, 5])
     [0.8, 1.4]
     >>> from fractions import Fraction as F
-    >>> solve([[F(2), 1], [1, 3]], [3, 5])
+    >>> x, steps = solve([[F(2), 1], [1, 3]], [3, 5], steps=True, lang="fr")
+    >>> x
     [Fraction(4, 5), Fraction(7, 5)]
+    >>> print(steps)
+    Élimination de Gauss : L_i ← L_i − (a_ik / a_kk)·L_k sous chaque pivot
+    Étape 1
+      pivot : le plus grand |a_i1| de la colonne 1 vaut 2, ligne 1
+      L₂ ← L₂ − (1/2)·L₁
+      Matrice après l'étape 1 :
+        [2    1]
+        [0  5/2]
+    Résultat
+      L =
+        [  1  0]
+        [1/2  1]
+      U =
+        [2    1]
+        [0  5/2]
+    Descente : L y = P b
+      Second membre permuté : P b = (3, 5)
+      y₁ = 3
+      y₂ = 5 − (3/2) = 7/2
+    Remontée : U x = y
+      x₂ = (7/2) / (5/2) = 7/5
+      x₁ = (3 − (7/5)) / 2 = 4/5
+    Solution
+      x = (4/5, 7/5)
     """
     _check_pivot(pivot)
     M, B, F, is_vector = as_system(A, b)
-    return _unwrap(_lu_solve(M, B, F, pivot), is_vector)
+    rec = Steps(lang=lang) if steps else None
+    X = _lu_solve(M, B, F, pivot, rec, is_vector=is_vector)
+    value = _unwrap(X, is_vector)
+    if rec is None:
+        return value
+    _record_value(rec, "solution", "x" if is_vector else "X", X, is_vector)
+    return Traced(value, rec)
 
 
 def _permutation_sign(perm: list[int]) -> int:
@@ -230,7 +387,13 @@ def _permutation_sign(perm: list[int]) -> int:
     return sign
 
 
-def det(A: MatrixLike, *, pivot: Pivoting = "partial") -> Scalar:
+def det(
+    A: MatrixLike,
+    *,
+    pivot: Pivoting = "partial",
+    steps: bool = False,
+    lang: str = "en",
+) -> Any:
     """Compute the determinant of a square matrix.
 
     Computed from ``P A = L U`` (or ``P A Q = L U``) as the product of the
@@ -243,11 +406,17 @@ def det(A: MatrixLike, *, pivot: Pivoting = "partial") -> Scalar:
         Square matrix. Not modified.
     pivot : {"partial", "complete"}, optional
         Pivoting strategy of the LU factorization.
+    steps : bool, optional
+        Also return the elimination steps and the final product, as a
+        :class:`~numanalysis.linalg.Traced` result.
+    lang : {"en", "fr"}, optional
+        Default language of the recorded steps.
 
     Returns
     -------
-    scalar
-        ``det(A)``, in the scalar type of `A` (zero if `A` is singular).
+    scalar or Traced
+        ``det(A)``, in the scalar type of `A` (zero if `A` is singular); with
+        ``steps=True``, a result that unpacks as ``det, steps``.
 
     Raises
     ------
@@ -261,22 +430,50 @@ def det(A: MatrixLike, *, pivot: Pivoting = "partial") -> Scalar:
     >>> from fractions import Fraction as F
     >>> det([[F(1, 2), F(1, 3)], [F(1, 4), F(1, 5)]])
     Fraction(1, 60)
+    >>> d, steps = det([[F(1), 2], [3, 4]], steps=True)
+    >>> print(steps.to_text().splitlines()[-1])
+      det A = (−1) · 3 · (2/3) = -2
     """
     _check_pivot(pivot)
     M, F = as_square_matrix(A)
-    _, U, perm, col_perm = _factor(M, F, pivot)
+    rec = Steps(lang=lang) if steps else None
+    _, U, perm, col_perm = _factor(M, F, pivot, rec)
+    pivots = [U[k][k] for k in range(len(U))]
     d = F.one
-    for k in range(len(U)):
-        d *= U[k][k]
-    if _permutation_sign(perm) * _permutation_sign(col_perm) < 0:
+    for u in pivots:
+        d *= u
+    sign = _permutation_sign(perm) * _permutation_sign(col_perm)
+    if sign < 0:
         d = -d
-    return d
+    if rec is None:
+        return d
+    rec.add(Header("determinant"))
+    rec.add(Determinant(sign, tuple(pivots), d))
+    return Traced(d, rec)
 
 
-def inv(A: MatrixLike, *, pivot: Pivoting = "partial") -> Matrix:
+@overload
+def inv(
+    A: MatrixLike,
+    *,
+    pivot: Pivoting = ...,
+    steps: Literal[False] = ...,
+    lang: str = ...,
+) -> Matrix: ...
+@overload
+def inv(
+    A: MatrixLike, *, pivot: Pivoting = ..., steps: Literal[True], lang: str = ...
+) -> Traced: ...
+def inv(
+    A: MatrixLike,
+    *,
+    pivot: Pivoting = "partial",
+    steps: bool = False,
+    lang: str = "en",
+) -> Matrix | Traced:
     """Compute the inverse of a square matrix.
 
-    Solves ``A X = I`` column by column with one LU factorization. Exact for
+    Solves ``A X = I`` with one LU factorization, all columns at once. Exact for
     ``Fraction`` matrices. Prefer :func:`solve` to compute ``A⁻¹ b``: it is
     cheaper and more accurate. Complexity: about 2n³ flops.
 
@@ -286,11 +483,15 @@ def inv(A: MatrixLike, *, pivot: Pivoting = "partial") -> Matrix:
         Square invertible matrix. Not modified.
     pivot : {"partial", "complete"}, optional
         Pivoting strategy of the LU factorization.
+    steps : bool, optional
+        Also return every step, as a :class:`~numanalysis.linalg.Traced` result.
+    lang : {"en", "fr"}, optional
+        Default language of the recorded steps.
 
     Returns
     -------
-    Matrix
-        ``A⁻¹``.
+    Matrix or Traced
+        ``A⁻¹``; with ``steps=True``, a result that unpacks as ``inverse, steps``.
 
     Raises
     ------
@@ -309,7 +510,14 @@ def inv(A: MatrixLike, *, pivot: Pivoting = "partial") -> Matrix:
     M, F = as_square_matrix(A)
     n = len(M)
     identity = [[F.one if i == j else F.zero for j in range(n)] for i in range(n)]
-    return _lu_solve(M, identity, F, pivot)
+    rec = Steps(lang=lang) if steps else None
+    if rec is not None:
+        rec.add(Note("inverse", level=0))
+    X = _lu_solve(M, identity, F, pivot, rec, is_vector=False)
+    if rec is None:
+        return X
+    _record_value(rec, "solution", "A⁻¹", X, False)
+    return Traced(X, rec)
 
 
 def solve_tridiagonal(

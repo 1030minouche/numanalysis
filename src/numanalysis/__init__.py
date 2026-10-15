@@ -9,6 +9,7 @@ Examples
 """
 
 from . import exceptions, linalg
+from ._steps import Steps
 from .exceptions import (
     InexactResultError,
     NotPositiveDefiniteError,
@@ -22,6 +23,7 @@ from .linalg import (
     CholeskyResult,
     LDLResult,
     LUResult,
+    Traced,
     back_substitution,
     cholesky,
     cond,
@@ -54,6 +56,8 @@ __all__ = [
     "NumAnalysisError",
     "ShapeError",
     "SingularMatrixError",
+    "Steps",
+    "Traced",
     "ZeroPivotError",
     "__version__",
     "back_substitution",

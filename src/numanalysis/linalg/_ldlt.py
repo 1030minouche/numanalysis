@@ -1,14 +1,22 @@
 """Square-root-free Cholesky factorization ``A = L D Lᵀ``."""
 
+from .._steps import Formula, Header, Note, Steps
 from .._validation import Matrix, MatrixLike, Vector, as_square_matrix
 from ..exceptions import NotSymmetricError, ZeroPivotError
+from ._lu import _record_factors
 from ._properties import _equals_transpose
 from ._results import LDLResult
 
 __all__ = ["ldlt"]
 
 
-def ldlt(A: MatrixLike, *, rtol: float | None = None) -> LDLResult:
+def ldlt(
+    A: MatrixLike,
+    *,
+    rtol: float | None = None,
+    steps: bool = False,
+    lang: str = "en",
+) -> LDLResult:
     """Factorize a symmetric matrix as ``A = L D Lᵀ``, without square roots.
 
     `L` is unit lower triangular and `D` diagonal. Since no square root is taken,
@@ -26,11 +34,17 @@ def ldlt(A: MatrixLike, *, rtol: float | None = None) -> LDLResult:
         Symmetric (or Hermitian) matrix. Not modified.
     rtol : float, optional
         Relative tolerance of the symmetry test (see :func:`is_symmetric`).
+    steps : bool, optional
+        Record the computation of every entry, with its numbers, in the
+        ``steps`` attribute of the result (and of the exception, on failure).
+    lang : {"en", "fr"}, optional
+        Default language of the recorded steps.
 
     Returns
     -------
     LDLResult
-        Unpacks as ``L, D``; also exposes ``d``, the diagonal of `D`.
+        Unpacks as ``L, D``; also exposes ``d``, the diagonal of `D`, and
+        ``steps``.
 
     Raises
     ------
@@ -63,24 +77,34 @@ def ldlt(A: MatrixLike, *, rtol: float | None = None) -> LDLResult:
     if not _equals_transpose(M, F, conjugate=True, rtol=rtol, atol=0):
         kind = "Hermitian" if F.is_complex else "symmetric"
         raise NotSymmetricError(f"A must be {kind}")
+    rec = Steps(lang=lang) if steps else None
+    if rec is not None:
+        rec.add(Note("ldlt_rule", level=0))
     n = len(M)
     zero, one = F.zero, F.one
     L: Matrix = [[one if i == j else zero for j in range(n)] for i in range(n)]
     d: Vector = []
     for j in range(n):
-        s = M[j][j] - sum(
-            (L[j][k] * F.conj(L[j][k]) * d[k] for k in range(j)), start=zero
-        )
-        dj = F.convert(F.real(s))
+        if rec is not None:
+            rec.add(Header("column_n", (j + 1,)))
+        s = sum((L[j][k] * F.conj(L[j][k]) * d[k] for k in range(j)), start=zero)
+        dj = F.convert(F.real(M[j][j] - s))
+        if rec is not None:
+            rec.add(Formula("d", (j,), M[j][j], s if j else None, None, dj))
         if dj == 0:
-            raise ZeroPivotError(
+            exc = ZeroPivotError(
                 f"the leading principal minor of order {j + 1} is zero"
             )
+            if rec is not None:
+                rec.add(Note("zero_pivot"))
+                exc.steps = rec
+            raise exc
         d.append(dj)
         for i in range(j + 1, n):
-            s = M[i][j] - sum(
-                (L[i][k] * F.conj(L[j][k]) * d[k] for k in range(j)), start=zero
-            )
-            L[i][j] = s / dj
+            s = sum((L[i][k] * F.conj(L[j][k]) * d[k] for k in range(j)), start=zero)
+            L[i][j] = (M[i][j] - s) / dj
+            if rec is not None:
+                rec.add(Formula("l", (i, j), M[i][j], s if j else None, dj, L[i][j]))
     D: Matrix = [[d[i] if i == j else zero for j in range(n)] for i in range(n)]
-    return LDLResult(L=L, D=D, d=d)
+    _record_factors(rec, L=L, D=D)
+    return LDLResult(L=L, D=D, d=d, steps=rec)

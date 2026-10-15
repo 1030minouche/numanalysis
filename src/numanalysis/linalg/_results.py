@@ -5,14 +5,25 @@ Each result unpacks like a tuple (``P, L, U = lu(A)``) and keeps named attribute
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from typing import Any
 
+from .._steps import Steps
 from .._validation import Matrix, Vector
 
-__all__ = ["CholeskyResult", "LDLResult", "LUResult"]
+__all__ = ["CholeskyResult", "LDLResult", "LUResult", "Traced"]
+
+
+class _ShowsSteps:
+    """Jupyter shows the recorded steps, if any, in LaTeX."""
+
+    steps: Steps | None
+
+    def _repr_latex_(self) -> str | None:
+        return None if self.steps is None else self.steps._repr_latex_()
 
 
 @dataclass(frozen=True)
-class LUResult:
+class LUResult(_ShowsSteps):
     """LU factorization with pivoting, ``P A = L U`` or ``P A Q = L U``.
 
     Attributes
@@ -33,6 +44,8 @@ class LUResult:
     pivot : str
         ``"partial"`` or ``"complete"``. With complete pivoting the result
         unpacks as ``P, L, U, Q``; otherwise as ``P, L, U``.
+    steps : Steps or None
+        The recorded steps, with ``steps=True``.
     """
 
     P: Matrix
@@ -42,6 +55,7 @@ class LUResult:
     Q: Matrix = field(default_factory=list)
     col_perm: list[int] = field(default_factory=list)
     pivot: str = "partial"
+    steps: Steps | None = field(default=None, repr=False, compare=False)
 
     def __iter__(self) -> Iterator[Matrix]:
         """Unpack as ``P, L, U`` (``P, L, U, Q`` with complete pivoting)."""
@@ -51,16 +65,19 @@ class LUResult:
 
 
 @dataclass(frozen=True)
-class CholeskyResult:
+class CholeskyResult(_ShowsSteps):
     """Cholesky factorization, ``A = L Lᵀ`` (``A = L Lᴴ`` if complex).
 
     Attributes
     ----------
     L : Matrix
         Lower triangular matrix with a real positive diagonal.
+    steps : Steps or None
+        The recorded steps, with ``steps=True``.
     """
 
     L: Matrix
+    steps: Steps | None = field(default=None, repr=False, compare=False)
 
     def __iter__(self) -> Iterator[Matrix]:
         """Unpack as ``(L,)``."""
@@ -68,7 +85,7 @@ class CholeskyResult:
 
 
 @dataclass(frozen=True)
-class LDLResult:
+class LDLResult(_ShowsSteps):
     """Square-root-free Cholesky factorization, ``A = L D Lᵀ`` (``L D Lᴴ``).
 
     Attributes
@@ -79,12 +96,38 @@ class LDLResult:
         Diagonal matrix.
     d : Vector
         The diagonal of `D`.
+    steps : Steps or None
+        The recorded steps, with ``steps=True``.
     """
 
     L: Matrix
     D: Matrix
     d: Vector
+    steps: Steps | None = field(default=None, repr=False, compare=False)
 
     def __iter__(self) -> Iterator[Matrix]:
         """Unpack as ``L, D``."""
         return iter((self.L, self.D))
+
+
+@dataclass(frozen=True)
+class Traced(_ShowsSteps):
+    """A value together with the steps that computed it.
+
+    Returned by :func:`solve`, :func:`det`, :func:`inv` and the substitutions when
+    they are called with ``steps=True``. Unpacks as ``value, steps``.
+
+    Attributes
+    ----------
+    value : object
+        The result (solution, determinant, inverse...).
+    steps : Steps
+        The recorded steps.
+    """
+
+    value: Any
+    steps: Steps
+
+    def __iter__(self) -> Iterator[Any]:
+        """Unpack as ``value, steps``."""
+        return iter((self.value, self.steps))

@@ -4,6 +4,11 @@ Every exception derives from :class:`NumAnalysisError`, itself a subclass of
 :class:`ValueError`, so ``except ValueError`` keeps working.
 """
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._steps import Steps
+
 __all__ = [
     "InexactResultError",
     "NotPositiveDefiniteError",
@@ -16,7 +21,16 @@ __all__ = [
 
 
 class NumAnalysisError(ValueError):
-    """Base class for all numanalysis errors."""
+    """Base class for all numanalysis errors.
+
+    Attributes
+    ----------
+    steps : Steps or None
+        When the failing call had ``steps=True``, the steps recorded up to the
+        failure (for instance the leading minor that is not positive).
+    """
+
+    steps: "Steps | None" = None
 
 
 class ShapeError(NumAnalysisError):

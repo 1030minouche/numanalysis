@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and exact for `Fraction` in the 1- and ∞-norms; `cond(A, ord=1)`.
 - Test matrices: `hilbert(n)`, `vandermonde(x)` and `random_spd(n, seed=...)`
   (integer entries), all with an `exact=True` option that returns `Fraction` entries.
+- Step-by-step traces: `lu`, `cholesky`, `ldlt`, `solve`, `det`, `inv` and the
+  substitutions accept `steps=True` (and `lang="fr"`). The trace records the pivot
+  choices, the row and column swaps, the row operations (`R₂ ← R₂ − 2·R₁`), every
+  computed entry with its numbers, and the intermediate matrices. It renders as text,
+  Markdown or LaTeX (`Steps.to_text`, `to_markdown`, `to_latex`), in English or French,
+  and is displayed in LaTeX in Jupyter. Factorizations store it in `.steps`; `solve`,
+  `det` and `inv` then return a `Traced` result that unpacks as `value, steps`. When a
+  traced call fails, the exception carries the steps up to the failure.
 - `ZeroPivotError`, raised by the methods without pivoting (`ldlt`,
   `solve_tridiagonal`) when they meet a zero pivot.
 
