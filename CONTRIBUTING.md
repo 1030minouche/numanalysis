@@ -38,6 +38,18 @@ pytest --cov=numanalysis         # tests, doctests (src and READMEs), coverage >
 - **Docstrings** follow the NumPy convention and include a runnable example and the
   complexity. Public functions are fully type-annotated.
 
+## Documentation
+
+The documentation (Sphinx, Furo theme, MyST notebooks) is built and published to
+GitHub Pages by the `docs.yml` workflow. To build it locally:
+
+```bash
+pip install -e ".[docs]"
+sphinx-build -W docs docs/_build/html
+```
+
+The notebooks in `docs/` are executed at every build, and warnings are errors.
+
 ## Tests
 
 A change is complete when it comes with:

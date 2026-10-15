@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   statement and a detailed solution in French or English, and `exercise_sheet` to
   build a complete document (compiles with `pdflatex`). `Steps.to_latex` gains an
   `environment="align"` option whose lines can break across pages.
+- Documentation website (Sphinx, Furo, MyST notebooks) published on GitHub Pages:
+  user guide (number types, step-by-step traces, exercises), API reference, and an
+  executed notebook comparing Hilbert systems solved in `float` and in `Fraction`.
 - `ZeroPivotError`, raised by the methods without pivoting (`ldlt`,
   `solve_tridiagonal`) when they meet a zero pivot.
 
