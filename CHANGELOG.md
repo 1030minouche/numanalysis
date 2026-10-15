@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gains `Q`, `col_perm` and `pivot`.
 - `ldlt(A)`: square-root-free factorization `A = L D Lᵀ` (`L D Lᴴ` if complex),
   exact for `Fraction` matrices and valid for indefinite ones. Returns an `LDLResult`.
+- `norm(x, ord)` for vectors (1, 2, ∞) and matrices (1, ∞, Frobenius), real-valued
+  and exact for `Fraction` in the 1- and ∞-norms; `cond(A, ord=1)`.
+- Test matrices: `hilbert(n)`, `vandermonde(x)` and `random_spd(n, seed=...)`
+  (integer entries), all with an `exact=True` option that returns `Fraction` entries.
 - `ZeroPivotError`, raised by the methods without pivoting (`ldlt`,
   `solve_tridiagonal`) when they meet a zero pivot.
 

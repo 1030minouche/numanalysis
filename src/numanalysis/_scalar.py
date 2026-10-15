@@ -113,6 +113,14 @@ class Field(ABC):
         """Complex conjugate (the identity on real fields)."""
         return x.conjugate() if self.is_complex else x
 
+    def real_sqrt(self, x: Scalar) -> Scalar:
+        """Square root of a non-negative real, as a real number.
+
+        On real fields this is :meth:`sqrt`; on complex fields the result is a
+        ``float`` (or an ``mpf``), not a complex number.
+        """
+        return self.sqrt(x)
+
     def real(self, x: Scalar) -> Scalar:
         """Real part (the identity on real fields)."""
         return x.real if self.is_complex else x
@@ -164,6 +172,9 @@ class _ComplexField(_FloatField):
 
     def sqrt(self, x: Scalar) -> Scalar:
         return cmath.sqrt(x)
+
+    def real_sqrt(self, x: Scalar) -> Scalar:
+        return math.sqrt(x)
 
 
 class _FractionField(Field):

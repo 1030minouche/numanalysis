@@ -1,8 +1,10 @@
 """Numerical linear algebra: matrix properties, factorizations and direct solvers."""
 
 from ._cholesky import cholesky
+from ._generators import hilbert, random_spd, vandermonde
 from ._ldlt import ldlt
 from ._lu import lu
+from ._norms import cond, norm
 from ._properties import is_hermitian, is_positive_definite, is_square, is_symmetric
 from ._results import CholeskyResult, LDLResult, LUResult
 from ._solve import (
@@ -20,8 +22,10 @@ __all__ = [
     "LUResult",
     "back_substitution",
     "cholesky",
+    "cond",
     "det",
     "forward_substitution",
+    "hilbert",
     "inv",
     "is_hermitian",
     "is_positive_definite",
@@ -29,6 +33,9 @@ __all__ = [
     "is_symmetric",
     "ldlt",
     "lu",
+    "norm",
+    "random_spd",
     "solve",
     "solve_tridiagonal",
+    "vandermonde",
 ]
