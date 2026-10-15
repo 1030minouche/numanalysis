@@ -94,7 +94,7 @@ Upgrading from 0.1.x? See the
 
 Triangular solvers, determinants, conditioning, step-by-step traces with LaTeX
 output, QR, eigenvalues, iterative methods, ODEs, PDEs and a mechanics/aero gallery
-are planned: see [ROADMAP.md](https://github.com/1030minouche/numanalysis/blob/main/ROADMAP.md).
+are planned.
 
 ## Contributing
 

@@ -1,4 +1,4 @@
-"""Regression tests for the bugs of numanalysis 0.1.1 (see ROADMAP.md, v0.2.0)."""
+"""Regression tests for the bugs of numanalysis 0.1.1 (see CHANGELOG.md, 0.2.0)."""
 
 import subprocess
 import sys

@@ -94,8 +94,7 @@ Vous migrez depuis la 0.1.x ? Consultez le
 
 Sont prévus : solveurs triangulaires, déterminants, conditionnement, traces pas à pas
 avec rendu LaTeX, QR, valeurs propres, méthodes itératives, EDO, EDP et une galerie
-d'exemples de mécanique et d'aéro. Voir
-[ROADMAP.md](https://github.com/1030minouche/numanalysis/blob/main/ROADMAP.md).
+d'exemples de mécanique et d'aéro.
 
 ## Contribuer
 
