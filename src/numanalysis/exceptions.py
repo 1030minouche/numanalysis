@@ -5,6 +5,7 @@ Every exception derives from :class:`NumAnalysisError`, itself a subclass of
 """
 
 __all__ = [
+    "InexactResultError",
     "NotPositiveDefiniteError",
     "NotSymmetricError",
     "NumAnalysisError",
@@ -31,3 +32,7 @@ class NotSymmetricError(NumAnalysisError):
 
 class NotPositiveDefiniteError(NumAnalysisError):
     """The matrix is not positive definite."""
+
+
+class InexactResultError(NumAnalysisError):
+    """An exact type cannot hold the result, such as ``sqrt(2)`` as a ``Fraction``."""
