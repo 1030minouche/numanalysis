@@ -1,10 +1,11 @@
-from decimal import Decimal
 from fractions import Fraction
 
 import pytest
 
-from numanalysis._validation import as_matrix, as_square_matrix, promote
+from numanalysis._scalar import FLOAT, FRACTION
+from numanalysis._validation import as_matrix, as_square_matrix, read_matrix
 from numanalysis.exceptions import (
+    InexactResultError,
     NotPositiveDefiniteError,
     NotSymmetricError,
     NumAnalysisError,
@@ -15,61 +16,60 @@ from numanalysis.exceptions import (
 
 @pytest.mark.parametrize(
     "exc",
-    [ShapeError, SingularMatrixError, NotSymmetricError, NotPositiveDefiniteError],
+    [
+        ShapeError,
+        SingularMatrixError,
+        NotSymmetricError,
+        NotPositiveDefiniteError,
+        InexactResultError,
+    ],
 )
 def test_exceptions_derive_from_value_error(exc: type[Exception]) -> None:
     assert issubclass(exc, NumAnalysisError)
     assert issubclass(exc, ValueError)
 
 
-@pytest.mark.parametrize(
-    ("value", "expected", "kind"),
-    [
-        (3, 3.0, float),
-        (True, 1.0, float),
-        (2.5, 2.5, float),
-        (1 + 2j, 1 + 2j, complex),
-        (Fraction(1, 3), Fraction(1, 3), Fraction),
-        (Decimal("0.1"), Decimal("0.1"), Decimal),
-    ],
-)
-def test_promote(value: object, expected: object, kind: type) -> None:
-    result = promote(value)
-    assert result == expected
-    assert type(result) is kind
-
-
-def test_promote_rejects_non_numbers() -> None:
-    with pytest.raises(TypeError, match="must be numbers"):
-        promote("1")
-
-
-def test_promote_numpy_scalars() -> None:
-    np = pytest.importorskip("numpy")
-    assert type(promote(np.int64(2))) is float
-    assert type(promote(np.float64(2.5))) is float
-    assert type(promote(np.float32(0.5))) is float
-    assert type(promote(np.complex128(1j))) is complex
+def test_read_matrix_keeps_entries() -> None:
+    third = Fraction(1, 3)
+    M = read_matrix([(1, third), (2.5, 1j)])
+    assert M == [[1, third], [2.5, 1j]]
+    assert type(M[0][0]) is int
+    assert M[0][1] is third
 
 
 def test_as_matrix_copies_and_does_not_mutate() -> None:
     A = [[1, 2], [3, 4]]
-    M = as_matrix(A)
+    M, F = as_matrix(A)
     M[0][0] = 99.0
     assert A == [[1, 2], [3, 4]]
-    assert as_matrix(A) == [[1.0, 2.0], [3.0, 4.0]]
+    assert as_matrix(A) == ([[1.0, 2.0], [3.0, 4.0]], FLOAT)
+    assert F is FLOAT
 
 
 def test_as_matrix_accepts_tuples_and_generators() -> None:
-    assert as_matrix(((1, 2),)) == [[1.0, 2.0]]
-    assert as_matrix(iter([iter([1]), iter([2])])) == [[1.0], [2.0]]
+    assert as_matrix(((1, 2),))[0] == [[1.0, 2.0]]
+    assert as_matrix(iter([iter([1]), iter([2])]))[0] == [[1.0], [2.0]]
 
 
 def test_as_matrix_accepts_numpy() -> None:
     np = pytest.importorskip("numpy")
-    M = as_matrix(np.array([[1, 2], [3, 4]]))
+    M, F = as_matrix(np.array([[1, 2], [3, 4]]))
     assert M == [[1.0, 2.0], [3.0, 4.0]]
+    assert F is FLOAT
     assert all(type(x) is float for row in M for x in row)
+
+
+def test_as_matrix_unifies_the_field() -> None:
+    M, F = as_matrix([[1, Fraction(1, 2)], [0, 1]])
+    assert F is FRACTION
+    assert all(type(x) is Fraction for row in M for x in row)
+
+
+def test_as_matrix_explicit_field() -> None:
+    M, F = as_matrix([[1, 2]], field=FRACTION)
+    assert F is FRACTION
+    assert M == [[Fraction(1), Fraction(2)]]
+    assert all(type(x) is Fraction for x in M[0])
 
 
 @pytest.mark.parametrize(
@@ -95,14 +95,15 @@ def test_as_matrix_rejects_non_numeric_entries() -> None:
 
 
 def test_as_square_matrix() -> None:
-    assert as_square_matrix([[1]]) == [[1.0]]
+    assert as_square_matrix([[1]]) == ([[1.0]], FLOAT)
     with pytest.raises(ShapeError, match=r"square, got shape \(2, 3\)"):
         as_square_matrix([[1, 2, 3], [4, 5, 6]], name="A")
 
 
-def test_promote_keeps_fraction_subclasses() -> None:
+def test_fraction_subclasses_are_kept() -> None:
     class MyFraction(Fraction):
         pass
 
     x = MyFraction(1, 2)
-    assert promote(x) is x
+    M, _ = as_matrix([[x, 1]])
+    assert M[0][0] is x

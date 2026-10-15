@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-15
+
+### Added
+
+- Every algorithm now runs in the scalar type of its input: `float`, `complex`,
+  `Fraction`, `Decimal`, and `mpmath.mpf`/`mpc` (optional `mp` extra). A matrix mixing
+  kinds is computed in one common type (e.g. `int` + `Fraction` → `Fraction`,
+  `Fraction` + `float` → `float`); `Decimal` cannot be mixed with `float`, `complex`,
+  `Fraction` or mpmath numbers and raises `TypeError`.
+- `is_hermitian(A)`. `cholesky` and `is_positive_definite` accept complex Hermitian
+  matrices (`A = L Lᴴ`).
+- `InexactResultError`, raised when an exact type cannot represent a result.
+- Direct solvers: `forward_substitution`, `back_substitution`, `solve` (vector or
+  matrix right-hand side), `det` (product of the pivots times the sign of the
+  permutations), `inv`, and `solve_tridiagonal` (Thomas algorithm, linear time).
+- Complete pivoting: `lu(A, pivot="complete")` gives `P A Q = L U` and unpacks as
+  `P, L, U, Q`; `solve`, `det` and `inv` accept the same `pivot` option. `LUResult`
+  gains `Q`, `col_perm` and `pivot`.
+- `ldlt(A)`: square-root-free factorization `A = L D Lᵀ` (`L D Lᴴ` if complex),
+  exact for `Fraction` matrices and valid for indefinite ones. Returns an `LDLResult`.
+- `norm(x, ord)` for vectors (1, 2, ∞) and matrices (1, ∞, Frobenius), real-valued
+  and exact for `Fraction` in the 1- and ∞-norms; `cond(A, ord=1)`.
+- Test matrices: `hilbert(n)`, `vandermonde(x)` and `random_spd(n, seed=...)`
+  (integer entries), all with an `exact=True` option that returns `Fraction` entries.
+- Step-by-step traces: `lu`, `cholesky`, `ldlt`, `solve`, `det`, `inv` and the
+  substitutions accept `steps=True` (and `lang="fr"`). The trace records the pivot
+  choices, the row and column swaps, the row operations (`R₂ ← R₂ − 2·R₁`), every
+  computed entry with its numbers, and the intermediate matrices. It renders as text,
+  Markdown or LaTeX (`Steps.to_text`, `to_markdown`, `to_latex`), in English or French,
+  and is displayed in LaTeX in Jupyter. Factorizations store it in `.steps`; `solve`,
+  `det` and `inv` then return a `Traced` result that unpacks as `value, steps`. When a
+  traced call fails, the exception carries the steps up to the failure.
+- `numanalysis.exercises`: generators of exercises whose answers are small integers
+  (`lu_exercise`, `cholesky_exercise`, `solve_exercise`, `det_exercise`), with a LaTeX
+  statement and a detailed solution in French or English, and `exercise_sheet` to
+  build a complete document (compiles with `pdflatex`). `Steps.to_latex` gains an
+  `environment="align"` option whose lines can break across pages.
+- Documentation website (Sphinx, Furo, MyST notebooks) published on GitHub Pages:
+  user guide (number types, step-by-step traces, exercises), API reference, and an
+  executed notebook comparing Hilbert systems solved in `float` and in `Fraction`.
+- `ZeroPivotError`, raised by the methods without pivoting (`ldlt`,
+  `solve_tridiagonal`) when they meet a zero pivot.
+
+### Changed
+
+- `cholesky` on `Fraction` input is now exact (it returned `float` before), and raises
+  `InexactResultError` when a square root is irrational.
+- Default relative tolerance of the symmetry tests: 4096 machine epsilons of the
+  current precision (about 9.1e-13 for `float`, was 1e-12). `Decimal` and mpmath
+  matrices are now compared with this relative tolerance; only `Fraction` matrices
+  are compared exactly.
+- Mixed-type matrices give one consistent output type.
+
 ## [0.2.0] - 2026-10-13
 
 ### Added
@@ -72,6 +125,7 @@ Because `lu` now pivots, `L` and `U` can differ from the 0.1.x results: compare
 
 - First published version: LU (without pivoting) and Cholesky factorizations.
 
-[Unreleased]: https://github.com/1030minouche/numanalysis/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/1030minouche/numanalysis/compare/05ce63b...v0.2.0
+[Unreleased]: https://github.com/1030minouche/numanalysis/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/1030minouche/numanalysis/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/1030minouche/numanalysis/compare/68e43ab...v0.2.0
 [0.1.1]: https://pypi.org/project/numanalysis/0.1.1/

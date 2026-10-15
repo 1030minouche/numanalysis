@@ -1,7 +1,7 @@
 import re
 
 import numanalysis
-from numanalysis import linalg
+from numanalysis import exercises, linalg
 
 
 def test_version_is_pep440() -> None:
@@ -11,7 +11,7 @@ def test_version_is_pep440() -> None:
 
 
 def test_all_names_exist() -> None:
-    for module in (numanalysis, linalg):
+    for module in (numanalysis, linalg, exercises):
         for name in module.__all__:
             assert hasattr(module, name), name
 

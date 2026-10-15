@@ -1,4 +1,4 @@
-"""Regression tests for the bugs of numanalysis 0.1.1 (see ROADMAP.md, v0.2.0)."""
+"""Regression tests for the bugs of numanalysis 0.1.1 (see CHANGELOG.md, 0.2.0)."""
 
 import subprocess
 import sys
@@ -11,7 +11,8 @@ import pytest
 import numanalysis
 from linalg_helpers import matmul
 from numanalysis import cholesky, is_positive_definite, lu
-from numanalysis.linalg import _cholesky, _lu
+from numanalysis._scalar import FLOAT
+from numanalysis.linalg import _lu
 
 
 def run_python(code: str, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -74,13 +75,13 @@ def test_bug5_lu_validates_and_factorizes_once(monkeypatch: pytest.MonkeyPatch) 
 
 def test_bug5_cholesky_factorizes_once(monkeypatch: pytest.MonkeyPatch) -> None:
     sqrt_calls = []
-    original = _cholesky._sqrt
+    original = FLOAT.sqrt
 
     def spy(x: Any) -> Any:
         sqrt_calls.append(x)
         return original(x)
 
-    monkeypatch.setattr(_cholesky, "_sqrt", spy)
+    monkeypatch.setattr(FLOAT, "sqrt", spy)
     cholesky([[4, 2, 0], [2, 5, 1], [0, 1, 2]])
     assert len(sqrt_calls) == 3
 

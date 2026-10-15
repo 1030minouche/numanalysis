@@ -7,6 +7,7 @@ from hypothesis import strategies as st
 
 from linalg_helpers import matmul, max_abs, max_abs_diff, transpose
 from numanalysis.exceptions import (
+    InexactResultError,
     NotPositiveDefiniteError,
     NotSymmetricError,
     ShapeError,
@@ -58,18 +59,63 @@ class TestCholesky:
         with pytest.raises(ShapeError):
             cholesky(bad)
 
-    def test_rejects_complex(self) -> None:
-        with pytest.raises(TypeError, match="complex"):
-            cholesky([[1j]])
+    def test_complex_hermitian(self) -> None:
+        A = [[4, 2 + 2j], [2 - 2j, 6]]
+        L = cholesky(A).L
+        assert all(type(x) is complex for row in L for x in row)
+        assert L[0][0] == 2
+        assert L[1][1].imag == 0
+        assert L[1][1].real > 0
+        LH = [[x.conjugate() for x in row] for row in transpose(L)]
+        assert max_abs_diff(matmul(L, LH), A) <= 1e-14
+
+    def test_complex_symmetric_is_not_hermitian(self) -> None:
+        with pytest.raises(NotSymmetricError, match="Hermitian"):
+            cholesky([[2, 1j], [1j, 2]])
+        with pytest.raises(NotSymmetricError, match="Hermitian"):
+            cholesky([[1j]])  # the diagonal of a Hermitian matrix is real
+
+    def test_complex_not_positive_definite(self) -> None:
+        with pytest.raises(NotPositiveDefiniteError, match="order 2"):
+            cholesky([[1, 2j], [-2j, 1]])
+
+    def test_numpy_oracle_complex(self) -> None:
+        np = pytest.importorskip("numpy")
+        rng = np.random.default_rng(2)
+        for n in (1, 3, 6):
+            B = rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
+            A = B @ B.conj().T + n * np.eye(n)
+            np.testing.assert_allclose(cholesky(A).L, np.linalg.cholesky(A))
 
     def test_errors_are_value_errors(self) -> None:
         with pytest.raises(ValueError, match="positive definite"):
             cholesky([[-1]])
 
-    def test_fraction_input_gives_floats(self) -> None:
-        L = cholesky([[Fraction(4), Fraction(2)], [Fraction(2), Fraction(5)]]).L
-        assert L == [[2.0, 0.0], [1.0, 2.0]]
-        assert all(type(x) is float for row in L for x in row)
+    def test_fraction_is_exact(self) -> None:
+        F = Fraction
+        A = [[F(1), F(2), F(6)], [F(2), F(5), F(15)], [F(6), F(15), F(46)]]
+        L = cholesky(A).L
+        assert L == [[1, 0, 0], [2, 1, 0], [6, 3, 1]]
+        assert all(type(x) is Fraction for row in L for x in row)
+        assert matmul(L, transpose(L)) == A
+        assert cholesky([[F(1, 4)]]).L == [[F(1, 2)]]
+
+    def test_fraction_irrational_root(self) -> None:
+        with pytest.raises(InexactResultError, match="irrational"):
+            cholesky([[Fraction(2), Fraction(1)], [Fraction(1), Fraction(2)]])
+
+    def test_mixed_fraction_and_int(self) -> None:
+        L = cholesky([[Fraction(4), 2], [2, 5]]).L
+        assert all(type(x) is Fraction for row in L for x in row)
+
+    def test_mpmath(self) -> None:
+        mpmath = pytest.importorskip("mpmath")
+        with mpmath.workdps(40):
+            A = [[mpmath.mpf(2), 1], [1, 2]]
+            L = cholesky(A).L
+            assert all(isinstance(x, mpmath.mpf) for row in L for x in row)
+            assert abs(L[0][0] ** 2 - 2) < mpmath.mpf("1e-38")
+            assert max_abs_diff(matmul(L, transpose(L)), A) < 1e-38
 
     def test_decimal(self) -> None:
         with localcontext() as ctx:

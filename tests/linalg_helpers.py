@@ -42,3 +42,20 @@ def is_lower_unit(L: Mat) -> bool:
 def is_upper(U: Mat) -> bool:
     n = len(U)
     return all(U[i][j] == 0 for i in range(n) for j in range(i))
+
+
+def identity(n: int) -> list[list[int]]:
+    return [[int(i == j) for j in range(n)] for i in range(n)]
+
+
+def square_int_matrices(max_n: int = 5, bound: int = 20) -> Any:
+    """Hypothesis strategy: square integer matrices of size 1 to `max_n`."""
+    from hypothesis import strategies as st
+
+    return st.integers(1, max_n).flatmap(
+        lambda n: st.lists(
+            st.lists(st.integers(-bound, bound), min_size=n, max_size=n),
+            min_size=n,
+            max_size=n,
+        )
+    )

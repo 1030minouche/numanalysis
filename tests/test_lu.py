@@ -5,8 +5,14 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from linalg_helpers import is_lower_unit, is_upper, matmul, max_abs, max_abs_diff
-from numanalysis._validation import promote
+from linalg_helpers import (
+    is_lower_unit,
+    is_upper,
+    matmul,
+    max_abs,
+    max_abs_diff,
+    square_int_matrices,
+)
 from numanalysis.exceptions import ShapeError
 from numanalysis.linalg._lu import lu
 from numanalysis.linalg._results import LUResult
@@ -20,7 +26,7 @@ def check_factorization(A: list[list[float]], tol: float = 1e-12) -> LUResult:
     assert all(abs(L[i][j]) <= 1 for i in range(len(L)) for j in range(i))
     PA = matmul(P, A)
     assert max_abs_diff(PA, matmul(L, U)) <= tol * max(1.0, max_abs(A))
-    assert [[promote(x) for x in A[p]] for p in res.perm] == PA
+    assert [list(A[p]) for p in res.perm] == PA
     return res
 
 
@@ -79,6 +85,27 @@ class TestLU:
     def test_complex(self) -> None:
         check_factorization([[1j, 2], [3, 4 - 1j]])  # type: ignore[list-item]
 
+    def test_mixed_entries_share_one_type(self) -> None:
+        P, L, U = lu([[Fraction(1, 2), 1], [3, 4]])
+        assert all(type(x) is Fraction for M in (P, L, U) for row in M for x in row)
+        P, L, U = lu([[1, 2.5], [1j, 4]])
+        assert all(type(x) is complex for M in (P, L, U) for row in M for x in row)
+
+    def test_cannot_mix_decimal_and_float(self) -> None:
+        with pytest.raises(TypeError, match="cannot mix Decimal"):
+            lu([[Decimal(1), 0.5], [0.5, 1]])
+
+    def test_mpmath(self) -> None:
+        mpmath = pytest.importorskip("mpmath")
+        with mpmath.workdps(60):
+            n = 8
+            H = [[mpmath.mpf(1) / (i + j + 1) for j in range(n)] for i in range(n)]
+            P, L, U = lu(H)
+            assert all(
+                isinstance(x, mpmath.mpf) for M in (P, L, U) for row in M for x in row
+            )
+            assert max_abs_diff(matmul(P, H), matmul(L, U)) < 1e-55
+
     @given(
         st.integers(1, 6).flatmap(
             lambda n: st.lists(
@@ -121,3 +148,60 @@ class TestLU:
             np.testing.assert_allclose(np.array(P), Ps.T)
             np.testing.assert_allclose(np.array(L), Ls, atol=1e-12)
             np.testing.assert_allclose(np.array(U), Us, atol=1e-12)
+
+
+class TestCompletePivoting:
+    def test_known_values(self) -> None:
+        res = lu([[1, 2], [3, 4]], pivot="complete")
+        P, L, U, Q = res
+        assert P == [[0.0, 1.0], [1.0, 0.0]]
+        assert res.perm == [1, 0]
+        assert res.col_perm == [1, 0]
+        assert U == [[4.0, 3.0], [0.0, -0.5]]
+        assert L == [[1.0, 0.0], [0.5, 1.0]]
+        assert Q == [[0.0, 1.0], [1.0, 0.0]]
+
+    def test_partial_result_has_identity_q(self) -> None:
+        res = lu([[1, 2], [3, 4]])
+        assert res.pivot == "partial"
+        assert res.Q == [[1.0, 0.0], [0.0, 1.0]]
+        assert res.col_perm == [0, 1]
+        assert len(list(res)) == 3
+
+    def test_picks_largest_entry_of_submatrix(self) -> None:
+        A = [[1, 0, 0], [0, 1, 9], [0, 2, 1]]
+        _, L, U, _ = lu(A, pivot="complete")
+        assert U[0][0] == 9
+        assert all(abs(L[i][j]) <= 1 for i in range(3) for j in range(i))
+
+    def test_rank_deficient(self) -> None:
+        P, L, U, Q = lu([[1, 2], [2, 4]], pivot="complete")
+        assert U[1][1] == 0
+        assert matmul(matmul(P, [[1, 2], [2, 4]]), Q) == matmul(L, U)
+
+    def test_unknown_pivot(self) -> None:
+        with pytest.raises(ValueError, match="pivot must be"):
+            lu([[1]], pivot="rook")  # type: ignore[arg-type]
+
+    @given(square_int_matrices())
+    def test_property_paq_equals_lu_exactly(self, A: list[list[int]]) -> None:
+        Fr = [[Fraction(x) for x in row] for row in A]
+        P, L, U, Q = lu(Fr, pivot="complete")
+        assert matmul(matmul(P, Fr), Q) == matmul(L, U)
+        assert is_lower_unit(L)
+        assert is_upper(U)
+        # |u_kk| dominates the whole remaining submatrix.
+        n = len(U)
+        assert all(abs(U[k][k]) >= abs(U[k][j]) for k in range(n) for j in range(k, n))
+
+    def test_growth_is_smaller_than_partial(self) -> None:
+        # Wilkinson's matrix: partial pivoting grows like 2^(n-1), complete does not.
+        n = 30
+        W = [
+            [1 if i == j or j == n - 1 else (-1 if i > j else 0) for j in range(n)]
+            for i in range(n)
+        ]
+        _, _, U = lu(W)
+        _, _, Uc, _ = lu(W, pivot="complete")
+        assert max_abs(U) == 2.0 ** (n - 1)
+        assert max_abs(Uc) <= 2 * n
