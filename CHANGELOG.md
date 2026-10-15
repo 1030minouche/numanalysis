@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-15
+
 ### Added
 
 - Every algorithm now runs in the scalar type of its input: `float`, `complex`,
@@ -123,6 +125,7 @@ Because `lu` now pivots, `L` and `U` can differ from the 0.1.x results: compare
 
 - First published version: LU (without pivoting) and Cholesky factorizations.
 
-[Unreleased]: https://github.com/1030minouche/numanalysis/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/1030minouche/numanalysis/compare/05ce63b...v0.2.0
+[Unreleased]: https://github.com/1030minouche/numanalysis/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/1030minouche/numanalysis/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/1030minouche/numanalysis/compare/68e43ab...v0.2.0
 [0.1.1]: https://pypi.org/project/numanalysis/0.1.1/
