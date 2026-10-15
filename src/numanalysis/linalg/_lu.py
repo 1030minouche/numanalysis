@@ -14,8 +14,9 @@ def lu(A: MatrixLike) -> LUResult:
     factorization is computed once and returned as a whole.
 
     A singular matrix is factorized too: `U` then has a zero on its diagonal.
-    Integer entries are computed as ``float``; ``Fraction`` and ``Decimal``
-    entries are kept, so the factorization of a ``Fraction`` matrix is exact.
+    The computation runs in the scalar type of the entries (``float``,
+    ``complex``, ``Fraction``, ``Decimal`` or mpmath); integers alone are computed
+    as ``float``, and the factorization of a ``Fraction`` matrix is exact.
 
     Complexity: about 2n³/3 flops.
 
@@ -34,7 +35,7 @@ def lu(A: MatrixLike) -> LUResult:
     ShapeError
         If `A` is empty, ragged or not square.
     TypeError
-        If an entry is not a number.
+        If an entry is not a number, or the entries cannot be mixed.
 
     See Also
     --------
@@ -62,10 +63,9 @@ def lu(A: MatrixLike) -> LUResult:
     >>> L[1][0], U[1][1]
     (Fraction(1, 3), Fraction(2, 3))
     """
-    U = as_square_matrix(A)
+    U, F = as_square_matrix(A)
     n = len(U)
-    zero = U[0][0] * 0
-    one = zero + 1
+    zero, one = F.zero, F.one
     L: Matrix = [[one if i == j else zero for j in range(n)] for i in range(n)]
     perm = list(range(n))
 

@@ -10,6 +10,7 @@ Examples
 
 from . import exceptions, linalg
 from .exceptions import (
+    InexactResultError,
     NotPositiveDefiniteError,
     NotSymmetricError,
     NumAnalysisError,
@@ -20,6 +21,7 @@ from .linalg import (
     CholeskyResult,
     LUResult,
     cholesky,
+    is_hermitian,
     is_positive_definite,
     is_square,
     is_symmetric,
@@ -30,6 +32,7 @@ __version__ = "0.3.0.dev0"
 
 __all__ = [
     "CholeskyResult",
+    "InexactResultError",
     "LUResult",
     "NotPositiveDefiniteError",
     "NotSymmetricError",
@@ -39,6 +42,7 @@ __all__ = [
     "__version__",
     "cholesky",
     "exceptions",
+    "is_hermitian",
     "is_positive_definite",
     "is_square",
     "is_symmetric",
