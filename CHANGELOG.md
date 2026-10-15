@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `is_hermitian(A)`. `cholesky` and `is_positive_definite` accept complex Hermitian
   matrices (`A = L Lᴴ`).
 - `InexactResultError`, raised when an exact type cannot represent a result.
+- Direct solvers: `forward_substitution`, `back_substitution`, `solve` (vector or
+  matrix right-hand side), `det` (product of the pivots times the sign of the
+  permutations), `inv`, and `solve_tridiagonal` (Thomas algorithm, linear time).
+- Complete pivoting: `lu(A, pivot="complete")` gives `P A Q = L U` and unpacks as
+  `P, L, U, Q`; `solve`, `det` and `inv` accept the same `pivot` option. `LUResult`
+  gains `Q`, `col_perm` and `pivot`.
+- `ldlt(A)`: square-root-free factorization `A = L D Lᵀ` (`L D Lᴴ` if complex),
+  exact for `Fraction` matrices and valid for indefinite ones. Returns an `LDLResult`.
+- `ZeroPivotError`, raised by the methods without pivoting (`ldlt`,
+  `solve_tridiagonal`) when they meet a zero pivot.
 
 ### Changed
 
