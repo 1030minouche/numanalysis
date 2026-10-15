@@ -181,6 +181,8 @@ class TestSteps:
             steps.to_text(lang="de")
         with pytest.raises(ValueError, match="fmt"):
             steps.render("html")
+        with pytest.raises(ValueError, match="environment"):
+            steps.to_latex(environment="tabular")
         with pytest.raises(ValueError, match="lang"):
             lu([[1]], steps=True, lang="es")
 

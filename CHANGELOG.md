@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and is displayed in LaTeX in Jupyter. Factorizations store it in `.steps`; `solve`,
   `det` and `inv` then return a `Traced` result that unpacks as `value, steps`. When a
   traced call fails, the exception carries the steps up to the failure.
+- `numanalysis.exercises`: generators of exercises whose answers are small integers
+  (`lu_exercise`, `cholesky_exercise`, `solve_exercise`, `det_exercise`), with a LaTeX
+  statement and a detailed solution in French or English, and `exercise_sheet` to
+  build a complete document (compiles with `pdflatex`). `Steps.to_latex` gains an
+  `environment="align"` option whose lines can break across pages.
 - `ZeroPivotError`, raised by the methods without pivoting (`ldlt`,
   `solve_tridiagonal`) when they meet a zero pivot.
 

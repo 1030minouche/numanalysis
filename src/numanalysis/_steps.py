@@ -521,19 +521,28 @@ class Steps(Sequence[Step]):
         return replace(self, lang=lang)
 
     def render(
-        self, fmt: str = "text", *, lang: str | None = None, digits: int = 6
+        self,
+        fmt: str = "text",
+        *,
+        lang: str | None = None,
+        digits: int = 6,
+        environment: str = "array",
     ) -> str:
         r"""Render the trace.
 
         Parameters
         ----------
         fmt : {"text", "markdown", "latex"}
-            Output format. The LaTeX output is an ``array`` environment to put in
-            math mode (``\[ … \]`` or ``$$ … $$``); it needs ``amsmath``.
+            Output format. LaTeX needs the ``amsmath`` package.
         lang : {"en", "fr"}, optional
             Language; defaults to the one of the trace.
         digits : int, optional
             Significant digits of floating-point numbers (fractions are exact).
+        environment : {"array", "align"}, optional
+            LaTeX only. ``"array"`` gives an ``array`` to put in math mode
+            (``\[ … \]`` or ``$$ … $$``, as Jupyter does); ``"align"`` gives a
+            standalone ``align*`` environment, whose lines can be split across
+            pages with ``\allowdisplaybreaks``.
 
         Returns
         -------
@@ -547,7 +556,15 @@ class Steps(Sequence[Step]):
         r = _Renderer(fmt, lang, digits)
         rendered = [(step.level, step.render(r)) for step in self.items]
         if fmt == "latex":
+            if environment not in ("array", "align"):
+                raise ValueError(
+                    f"environment must be 'array' or 'align', got {environment!r}"
+                )
             body = [(r"\quad " if level else "") + line for level, line in rendered]
+            if environment == "align":
+                return (
+                    "\\begin{align*}\n& " + " \\\\\n& ".join(body) + "\n\\end{align*}"
+                )
             return "\\begin{array}{l}\n" + " \\\\\n".join(body) + "\n\\end{array}"
         if fmt == "markdown":
             out: list[str] = []
@@ -572,9 +589,11 @@ class Steps(Sequence[Step]):
         """Render as Markdown: a bulleted list, matrices in code blocks."""
         return self.render("markdown", lang=lang, digits=digits)
 
-    def to_latex(self, *, lang: str | None = None, digits: int = 6) -> str:
-        """Render as a LaTeX ``array``, to put in math mode."""
-        return self.render("latex", lang=lang, digits=digits)
+    def to_latex(
+        self, *, lang: str | None = None, digits: int = 6, environment: str = "array"
+    ) -> str:
+        """Render as LaTeX: an ``array`` to put in math mode, or an ``align*``."""
+        return self.render("latex", lang=lang, digits=digits, environment=environment)
 
     def __str__(self) -> str:
         return self.to_text()
